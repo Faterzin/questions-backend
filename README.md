@@ -31,19 +31,25 @@ Retorna a lista de questões. Todos os parâmetros são opcionais.
 | `difficulty` | `easy` \| `medium` \| `hard`  | Filtra por nível de dificuldade                  |
 | `limit`      | número                        | Quantidade de questões por página                |
 | `page`       | número                        | Página desejada (padrão: `1`, requer `limit`)    |
+| `encode`     | `base64`                      | Codifica todos os valores da resposta em base64  |
 
 **Exemplos de requisição:**
 
 ```
+# JSON normal (padrão)
 GET /questions
 GET /questions?category=JavaScript
 GET /questions?difficulty=hard
-GET /questions?category=CSS&difficulty=medium
 GET /questions?limit=10&page=1
-GET /questions?category=HTML&difficulty=easy&limit=5&page=1
+
+# Valores codificados em base64
+GET /questions?encode=base64
+GET /questions?category=JavaScript&encode=base64
+GET /questions?difficulty=hard&encode=base64
+GET /questions?limit=10&page=1&encode=base64
 ```
 
-**Resposta:**
+**Resposta normal (padrão):**
 ```json
 {
   "total": 44,
@@ -73,11 +79,48 @@ GET /questions?category=HTML&difficulty=easy&limit=5&page=1
 }
 ```
 
+**Resposta com `encode=base64`:**
+
+A estrutura do JSON é preservada integralmente. Apenas os valores primitivos (strings, números) são codificados em base64 — incluindo os valores dentro de cada questão e objetos aninhados:
+
+```json
+{
+  "total": "NDQ=",
+  "page": "MQ==",
+  "limit": "MTA=",
+  "pages": "NQ==",
+  "data": [
+    {
+      "id": "dXVpZA==",
+      "title": "TyBxdWUgw6kgdW1hIGNsb3N1cmUgZW0gSmF2YVNjcmlwdD8=",
+      "correctAnswer": "VW1hIGZ1bsOnw6NvIHF1ZSBtYW50w6ltIGFjZXNzby4uLg==",
+      "incorrectAnswers": [
+        "VW1hIGZ1bsOnw6NvIHNlbSBwYXLDom1ldHJvcw==",
+        "VW0gbcOpdG9kbyBwYXJhIGZlY2hhciBjb25leOVlcw==",
+        "VW1hIGZ1bsOnw6NvIHF1ZSBuw6NvIHBvZGUgc2VyIHJlYXRyaWJ1w61kYQ=="
+      ],
+      "difficulty": "bWVkaXVt",
+      "categoryId": "dXVpZA==",
+      "category": {
+        "id": "dXVpZA==",
+        "name": "SmF2YVNjcmlwdA=="
+      },
+      "createdAt": "MjAyNi0wNC0xMFQwMDowMDowMC4wMDBa",
+      "updatedAt": "MjAyNi0wNC0xMFQwMDowMDowMC4wMDBa"
+    }
+  ]
+}
+```
+
 > Quando `limit` não é informado, os campos `limit` e `pages` são omitidos da resposta.
 
 **Resposta de erro (dificuldade inválida):**
 ```json
+// normal
 { "error": "Dificuldade inválida. Use: easy, medium, hard" }
+
+// com encode=base64
+{ "error": "RGlmaWN1bGRhZGUgaW52w6FsaWRhLiBVc2U6IGVhc3ksIG1lZGl1bSwgaGFyZA==" }
 ```
 
 ---
@@ -99,16 +142,24 @@ GET /questions?category=HTML&difficulty=easy&limit=5&page=1
 ```js
 const BASE_URL = 'http://questions-api-kappa.vercel.app'
 
-// Todas as questões
+// JSON normal
 const res = await fetch(`${BASE_URL}/questions`)
 const data = await res.json()
 
-// Filtrar por categoria e dificuldade
-const res = await fetch(`${BASE_URL}/questions?category=JavaScript&difficulty=hard`)
-const data = await res.json()
+// Com encode=base64 — estrutura preservada, decodificar os valores
+const res = await fetch(`${BASE_URL}/questions?encode=base64`)
+const json = await res.json()
+const questions = json.data.map(q => ({
+  id: atob(q.id),
+  title: atob(q.title),
+  correctAnswer: atob(q.correctAnswer),
+  incorrectAnswers: q.incorrectAnswers.map(atob),
+  difficulty: atob(q.difficulty),
+  category: { id: atob(q.category.id), name: atob(q.category.name) },
+}))
 
-// Com paginação
-const res = await fetch(`${BASE_URL}/questions?limit=10&page=1`)
+// Com filtros e paginação (normal)
+const res = await fetch(`${BASE_URL}/questions?category=JavaScript&difficulty=hard&limit=10&page=1`)
 const { data: questions, total, pages } = await res.json()
 ```
 
@@ -118,21 +169,27 @@ import axios from 'axios'
 
 const api = axios.create({ baseURL: 'http://questions-api-kappa.vercel.app' })
 
+// JSON normal
 const { data } = await api.get('/questions', {
   params: { category: 'CSS', difficulty: 'medium', limit: 5, page: 1 }
+})
+
+// Com encode=base64
+const { data: json } = await api.get('/questions', {
+  params: { encode: 'base64' }
 })
 ```
 
 **curl:**
 ```bash
-# Todas as questões
+# JSON normal
 curl http://questions-api-kappa.vercel.app/questions
 
-# Com filtros
-curl "http://questions-api-kappa.vercel.app/questions?category=HTML&difficulty=easy"
+# Com encode=base64
+curl "http://questions-api-kappa.vercel.app/questions?encode=base64"
 
-# Com paginação
-curl "http://questions-api-kappa.vercel.app/questions?limit=10&page=1"
+# Com filtros e encode=base64
+curl "http://questions-api-kappa.vercel.app/questions?category=HTML&encode=base64"
 ```
 
 ---
