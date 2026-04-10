@@ -12,12 +12,12 @@ A rota `/questions` aplica limite de requisições por IP:
 
 | Janela | Limite | Status ao exceder |
 |--------|--------|-------------------|
-| 1 minuto | 30 requisições | `429 Too Many Requests` |
+| 30 segundos | 12 requisições | `429 Too Many Requests` |
 
 Ao exceder o limite, a API retorna:
 
 ```json
-{ "error": "Muitas requisições. Tente novamente em 1 minuto." }
+{ "error": "Muitas requisições. Tente novamente em 30 segundos." }
 ```
 
 Os headers `RateLimit-Limit`, `RateLimit-Remaining` e `RateLimit-Reset` são incluídos em todas as respostas para que o cliente saiba quantas requisições ainda tem disponíveis.
