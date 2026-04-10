@@ -6,3 +6,32 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum Difficulty {
+  easy
+  medium
+  hard
+}
+
+model Category {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  createdAt DateTime   @default(now())
+  questions Question[]
+
+  @@map("categories")
+}
+
+model Question {
+  id               String     @id @default(uuid())
+  title            String
+  correctAnswer    String
+  incorrectAnswers String[]
+  difficulty       Difficulty @default(easy)
+  categoryId       String
+  category         Category   @relation(fields: [categoryId], references: [id])
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@map("questions")
+}
