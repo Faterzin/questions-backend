@@ -2,7 +2,7 @@
 
 API REST de questões de múltipla escolha sobre HTML, CSS e JavaScript, com suporte a filtros por categoria, dificuldade e paginação.
 
-**Base URL:** `http://questions-api-kappa.vercel.app`
+**Base URL:** `https://questions-backend-five.vercel.app`
 
 ---
 
@@ -158,7 +158,7 @@ A estrutura do JSON é preservada integralmente. Apenas os valores primitivos (s
 
 **JavaScript (fetch):**
 ```js
-const BASE_URL = 'http://questions-api-kappa.vercel.app'
+const BASE_URL = 'https://questions-backend-five.vercel.app'
 
 // JSON normal
 const res = await fetch(`${BASE_URL}/questions`)
@@ -185,7 +185,7 @@ const { data: questions, total, pages } = await res.json()
 ```js
 import axios from 'axios'
 
-const api = axios.create({ baseURL: 'http://questions-api-kappa.vercel.app' })
+const api = axios.create({ baseURL: 'https://questions-backend-five.vercel.app' })
 
 // JSON normal
 const { data } = await api.get('/questions', {
@@ -201,13 +201,13 @@ const { data: json } = await api.get('/questions', {
 **curl:**
 ```bash
 # JSON normal
-curl http://questions-api-kappa.vercel.app/questions
+curl https://questions-backend-five.vercel.app/questions
 
 # Com encode=base64
-curl "http://questions-api-kappa.vercel.app/questions?encode=base64"
+curl "https://questions-backend-five.vercel.app/questions?encode=base64"
 
 # Com filtros e encode=base64
-curl "http://questions-api-kappa.vercel.app/questions?category=HTML&encode=base64"
+curl "https://questions-backend-five.vercel.app/questions?category=HTML&encode=base64"
 ```
 
 ---

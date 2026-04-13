@@ -14,7 +14,7 @@ Your job is to correctly consume this API, help users build quizzes, generate co
 
 Production:
 ```
-http://questions-api-kappa.vercel.app
+https://questions-backend-five.vercel.app
 ```
 
 Local development:
@@ -316,7 +316,7 @@ Do not retry immediately. Wait before retrying.
 ### JavaScript — fetch (browser or Node.js 18+)
 
 ```js
-const BASE_URL = 'http://questions-api-kappa.vercel.app'
+const BASE_URL = 'https://questions-backend-five.vercel.app'
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -434,7 +434,7 @@ import axios from 'axios'
 // ─── Setup ────────────────────────────────────────────────────────────────────
 
 const api = axios.create({
-  baseURL: 'http://questions-api-kappa.vercel.app',
+  baseURL: 'https://questions-backend-five.vercel.app',
 })
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
@@ -509,7 +509,7 @@ import requests
 import base64
 import json
 
-BASE_URL = 'http://questions-api-kappa.vercel.app'
+BASE_URL = 'https://questions-backend-five.vercel.app'
 
 def decode_b64(value: str) -> str:
     return base64.b64decode(value).decode('utf-8')
@@ -562,7 +562,7 @@ if res.status_code == 400:
 ### curl (terminal)
 
 ```bash
-BASE="http://questions-api-kappa.vercel.app"
+BASE="https://questions-backend-five.vercel.app"
 
 # Health check
 curl "$BASE/"
