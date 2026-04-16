@@ -8,10 +8,33 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum Role {
+  admin
+}
+
 enum Difficulty {
   easy
   medium
   hard
+}
+
+enum QuestionStatus {
+  pending
+  approved
+  rejected
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(admin)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
 }
 
 model Category {
@@ -24,15 +47,18 @@ model Category {
 }
 
 model Question {
-  id               String     @id @default(uuid())
+  id               String         @id @default(uuid())
   title            String
   correctAnswer    String
   incorrectAnswers String[]
-  difficulty       Difficulty @default(easy)
+  difficulty       Difficulty     @default(easy)
+  status           QuestionStatus @default(pending)
   categoryId       String
-  category         Category   @relation(fields: [categoryId], references: [id])
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  category         Category       @relation(fields: [categoryId], references: [id])
+  submittedBy      String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
+  @@index([status])
   @@map("questions")
 }

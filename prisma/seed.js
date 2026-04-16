@@ -1,10 +1,24 @@
 const { PrismaClient } = require('@prisma/client')
+const bcrypt = require('bcryptjs')
 
 const prisma = new PrismaClient()
 
 async function main() {
   await prisma.question.deleteMany()
   await prisma.category.deleteMany()
+  await prisma.user.deleteMany()
+
+  // Criar admin padrão
+  const hashedPassword = await bcrypt.hash('AbacateTunado2000#@', 10)
+  await prisma.user.create({
+    data: {
+      name: 'Zenix Code',
+      email: 'suporte@zenixcode.com.br',
+      password: hashedPassword,
+      role: 'admin',
+    },
+  })
+  console.log('✔ Admin criado: admin@questions.com / admin123')
 
   const html = await prisma.category.create({ data: { name: 'HTML' } })
   const css = await prisma.category.create({ data: { name: 'CSS' } })
@@ -402,9 +416,11 @@ async function main() {
     },
   ]
 
-  await prisma.question.createMany({ data: questions })
+  await prisma.question.createMany({
+    data: questions.map(q => ({ ...q, status: 'approved' })),
+  })
 
-  console.log(`✔ ${questions.length} questões criadas com sucesso.`)
+  console.log(`✔ ${questions.length} questões criadas (approved) com sucesso.`)
 }
 
 main()
