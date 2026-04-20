@@ -3,12 +3,715 @@ const bcrypt = require('bcryptjs')
 
 const prisma = new PrismaClient()
 
+function slugify(text) {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+const subjects = [
+  {
+    name: 'Matemática',
+    color: '#3b82f6',
+    icon: 'calculator',
+    topics: {
+      'Álgebra': [
+        {
+          title: 'Qual é o valor de x na equação 2x + 5 = 13?',
+          correctAnswer: '4',
+          incorrectAnswers: ['3', '5', '9'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Qual é a solução da equação x² - 5x + 6 = 0?',
+          correctAnswer: 'x = 2 ou x = 3',
+          incorrectAnswers: ['x = 1 ou x = 6', 'x = -2 ou x = -3', 'x = 0 ou x = 5'],
+          difficulty: 'medium',
+        },
+        {
+          title: 'Qual o valor de log₂(32)?',
+          correctAnswer: '5',
+          incorrectAnswers: ['4', '6', '16'],
+          difficulty: 'medium',
+        },
+        {
+          title: 'Se f(x) = 2x² - 3x + 1, qual o valor de f(2)?',
+          correctAnswer: '3',
+          incorrectAnswers: ['5', '7', '9'],
+          difficulty: 'hard',
+        },
+      ],
+      'Geometria': [
+        {
+          title: 'Qual a soma dos ângulos internos de um triângulo?',
+          correctAnswer: '180°',
+          incorrectAnswers: ['90°', '360°', '270°'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'A área de um círculo de raio 5 cm é aproximadamente:',
+          correctAnswer: '78,5 cm²',
+          incorrectAnswers: ['31,4 cm²', '25 cm²', '15,7 cm²'],
+          difficulty: 'medium',
+        },
+        {
+          title: 'Num triângulo retângulo com catetos 3 e 4, a hipotenusa mede:',
+          correctAnswer: '5',
+          incorrectAnswers: ['6', '7', '12'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Qual o volume de uma esfera de raio 3 cm? (use π ≈ 3,14)',
+          correctAnswer: '113,04 cm³',
+          incorrectAnswers: ['28,26 cm³', '84,78 cm³', '56,52 cm³'],
+          difficulty: 'hard',
+        },
+      ],
+      'Estatística': [
+        {
+          title: 'Qual a média aritmética de 4, 6, 8 e 10?',
+          correctAnswer: '7',
+          incorrectAnswers: ['6', '8', '28'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'A mediana do conjunto {3, 7, 2, 8, 5} é:',
+          correctAnswer: '5',
+          incorrectAnswers: ['3', '7', '4,5'],
+          difficulty: 'medium',
+        },
+        {
+          title: 'A moda do conjunto {2, 4, 4, 6, 8, 4, 10} é:',
+          correctAnswer: '4',
+          incorrectAnswers: ['6', '2', '10'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Qual o desvio padrão de um conjunto com variância 16?',
+          correctAnswer: '4',
+          incorrectAnswers: ['8', '2', '16'],
+          difficulty: 'hard',
+        },
+      ],
+    },
+  },
+  {
+    name: 'Português',
+    color: '#ef4444',
+    icon: 'book-text',
+    topics: {
+      'Gramática': [
+        {
+          title: 'Qual é o plural correto de "cidadão"?',
+          correctAnswer: 'cidadãos',
+          incorrectAnswers: ['cidadões', 'cidadães', 'cidadões'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Em "Os livros estão sobre a mesa", qual é o sujeito?',
+          correctAnswer: 'Os livros',
+          incorrectAnswers: ['a mesa', 'estão sobre', 'sobre a mesa'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Qual alternativa contém apenas palavras oxítonas?',
+          correctAnswer: 'café, sofá, jacaré',
+          incorrectAnswers: ['útil, fácil, ágil', 'lâmpada, pássaro, médico', 'casa, mesa, livro'],
+          difficulty: 'medium',
+        },
+        {
+          title: 'A oração "Espero que você venha" tem uma oração subordinada:',
+          correctAnswer: 'substantiva objetiva direta',
+          incorrectAnswers: ['adjetiva restritiva', 'adverbial causal', 'coordenada aditiva'],
+          difficulty: 'hard',
+        },
+      ],
+      'Interpretação': [
+        {
+          title: 'O que significa a expressão "chorar sobre o leite derramado"?',
+          correctAnswer: 'Lamentar algo que já aconteceu e não tem solução',
+          incorrectAnswers: [
+            'Desperdiçar alimento',
+            'Reclamar de coisas pequenas',
+            'Cozinhar sem atenção',
+          ],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Em um texto dissertativo-argumentativo, a tese é:',
+          correctAnswer: 'A ideia principal que o autor defende',
+          incorrectAnswers: [
+            'O resumo do texto',
+            'As citações de outros autores',
+            'A conclusão do texto',
+          ],
+          difficulty: 'medium',
+        },
+        {
+          title: 'Qual figura de linguagem há em "Seus olhos são estrelas"?',
+          correctAnswer: 'Metáfora',
+          incorrectAnswers: ['Metonímia', 'Hipérbole', 'Antítese'],
+          difficulty: 'medium',
+        },
+        {
+          title: '"Li Machado" no sentido de "li as obras de Machado" é exemplo de:',
+          correctAnswer: 'Metonímia',
+          incorrectAnswers: ['Metáfora', 'Eufemismo', 'Pleonasmo'],
+          difficulty: 'hard',
+        },
+      ],
+      'Literatura': [
+        {
+          title: 'Quem escreveu "Dom Casmurro"?',
+          correctAnswer: 'Machado de Assis',
+          incorrectAnswers: ['José de Alencar', 'Graciliano Ramos', 'Jorge Amado'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'O movimento literário do Romantismo no Brasil teve início em:',
+          correctAnswer: '1836, com "Suspiros Poéticos e Saudades" de Gonçalves de Magalhães',
+          incorrectAnswers: [
+            '1922, com a Semana de Arte Moderna',
+            '1881, com "Memórias Póstumas de Brás Cubas"',
+            '1902, com "Os Sertões" de Euclides da Cunha',
+          ],
+          difficulty: 'medium',
+        },
+        {
+          title: 'Qual obra é representante do Modernismo brasileiro?',
+          correctAnswer: 'Macunaíma, de Mário de Andrade',
+          incorrectAnswers: [
+            'Iracema, de José de Alencar',
+            'O Guarani, de José de Alencar',
+            'A Moreninha, de Joaquim Manuel de Macedo',
+          ],
+          difficulty: 'medium',
+        },
+        {
+          title: 'A obra "Grande Sertão: Veredas" pertence a qual autor?',
+          correctAnswer: 'João Guimarães Rosa',
+          incorrectAnswers: ['Clarice Lispector', 'Carlos Drummond de Andrade', 'Euclides da Cunha'],
+          difficulty: 'hard',
+        },
+      ],
+    },
+  },
+  {
+    name: 'História',
+    color: '#f59e0b',
+    icon: 'landmark',
+    topics: {
+      'Brasil Colônia': [
+        {
+          title: 'Em que ano Pedro Álvares Cabral chegou ao Brasil?',
+          correctAnswer: '1500',
+          incorrectAnswers: ['1498', '1502', '1492'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Qual foi o primeiro ciclo econômico do Brasil Colônia?',
+          correctAnswer: 'Pau-brasil',
+          incorrectAnswers: ['Açúcar', 'Ouro', 'Café'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'O sistema de capitanias hereditárias foi criado em:',
+          correctAnswer: '1534',
+          incorrectAnswers: ['1500', '1549', '1580'],
+          difficulty: 'medium',
+        },
+        {
+          title: 'A Inconfidência Mineira (1789) teve como principal motivação:',
+          correctAnswer: 'A Derrama, cobrança atrasada do quinto do ouro pela Coroa',
+          incorrectAnswers: [
+            'A abolição da escravatura',
+            'A independência dos Estados Unidos',
+            'A invasão holandesa no Nordeste',
+          ],
+          difficulty: 'hard',
+        },
+      ],
+      'Brasil República': [
+        {
+          title: 'Em que ano foi proclamada a República no Brasil?',
+          correctAnswer: '1889',
+          incorrectAnswers: ['1888', '1891', '1822'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Quem foi o primeiro presidente civil eleito pelo voto direto no Brasil?',
+          correctAnswer: 'Prudente de Morais',
+          incorrectAnswers: ['Deodoro da Fonseca', 'Floriano Peixoto', 'Getúlio Vargas'],
+          difficulty: 'medium',
+        },
+        {
+          title: 'A Era Vargas durou de:',
+          correctAnswer: '1930 a 1945',
+          incorrectAnswers: ['1920 a 1930', '1945 a 1964', '1964 a 1985'],
+          difficulty: 'medium',
+        },
+        {
+          title: 'O golpe militar no Brasil ocorreu em:',
+          correctAnswer: '1964',
+          incorrectAnswers: ['1930', '1945', '1985'],
+          difficulty: 'easy',
+        },
+      ],
+      'História Geral': [
+        {
+          title: 'A Revolução Francesa começou em:',
+          correctAnswer: '1789',
+          incorrectAnswers: ['1776', '1799', '1815'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Qual evento marca o fim da Idade Média?',
+          correctAnswer: 'Queda de Constantinopla em 1453',
+          incorrectAnswers: [
+            'Descoberta da América em 1492',
+            'Reforma Protestante em 1517',
+            'Revolução Francesa em 1789',
+          ],
+          difficulty: 'medium',
+        },
+        {
+          title: 'A Segunda Guerra Mundial terminou em:',
+          correctAnswer: '1945',
+          incorrectAnswers: ['1918', '1939', '1948'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'O Tratado de Versalhes (1919) foi assinado após:',
+          correctAnswer: 'A Primeira Guerra Mundial',
+          incorrectAnswers: [
+            'A Segunda Guerra Mundial',
+            'A Guerra Fria',
+            'As Guerras Napoleônicas',
+          ],
+          difficulty: 'hard',
+        },
+      ],
+    },
+  },
+  {
+    name: 'Geografia',
+    color: '#10b981',
+    icon: 'globe',
+    topics: {
+      'Geografia do Brasil': [
+        {
+          title: 'Qual é a capital do Brasil?',
+          correctAnswer: 'Brasília',
+          incorrectAnswers: ['Rio de Janeiro', 'São Paulo', 'Salvador'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Quantos estados tem o Brasil?',
+          correctAnswer: '26',
+          incorrectAnswers: ['25', '27', '24'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Qual o maior bioma brasileiro em extensão?',
+          correctAnswer: 'Amazônia',
+          incorrectAnswers: ['Cerrado', 'Caatinga', 'Mata Atlântica'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'A região Sudeste do Brasil é composta por:',
+          correctAnswer: 'SP, RJ, MG e ES',
+          incorrectAnswers: ['SP, RJ, MG e BA', 'SP, RJ, PR e ES', 'MG, ES, GO e DF'],
+          difficulty: 'medium',
+        },
+      ],
+      'Geografia Mundial': [
+        {
+          title: 'Qual é o maior oceano do mundo?',
+          correctAnswer: 'Pacífico',
+          incorrectAnswers: ['Atlântico', 'Índico', 'Ártico'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Qual o país mais populoso do mundo (dados recentes)?',
+          correctAnswer: 'Índia',
+          incorrectAnswers: ['China', 'Estados Unidos', 'Indonésia'],
+          difficulty: 'medium',
+        },
+        {
+          title: 'A Cordilheira dos Andes está localizada em qual continente?',
+          correctAnswer: 'América do Sul',
+          incorrectAnswers: ['América do Norte', 'Ásia', 'Europa'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'O fenômeno climático conhecido como El Niño ocorre principalmente no:',
+          correctAnswer: 'Oceano Pacífico equatorial',
+          incorrectAnswers: [
+            'Oceano Atlântico Norte',
+            'Mar Mediterrâneo',
+            'Oceano Índico',
+          ],
+          difficulty: 'hard',
+        },
+      ],
+    },
+  },
+  {
+    name: 'Biologia',
+    color: '#22c55e',
+    icon: 'dna',
+    topics: {
+      'Citologia': [
+        {
+          title: 'Qual é a unidade básica da vida?',
+          correctAnswer: 'Célula',
+          incorrectAnswers: ['Tecido', 'Órgão', 'Molécula'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'A organela responsável pela produção de energia na célula é:',
+          correctAnswer: 'Mitocôndria',
+          incorrectAnswers: ['Ribossomo', 'Lisossomo', 'Complexo de Golgi'],
+          difficulty: 'medium',
+        },
+        {
+          title: 'Qual a principal diferença entre células procariontes e eucariontes?',
+          correctAnswer: 'Procariontes não possuem núcleo organizado',
+          incorrectAnswers: [
+            'Eucariontes não possuem membrana',
+            'Procariontes são maiores',
+            'Eucariontes não possuem DNA',
+          ],
+          difficulty: 'medium',
+        },
+        {
+          title: 'O processo pelo qual as células realizam fotossíntese ocorre em:',
+          correctAnswer: 'Cloroplastos',
+          incorrectAnswers: ['Mitocôndrias', 'Ribossomos', 'Núcleo'],
+          difficulty: 'easy',
+        },
+      ],
+      'Genética': [
+        {
+          title: 'Quem é considerado o pai da genética?',
+          correctAnswer: 'Gregor Mendel',
+          incorrectAnswers: ['Charles Darwin', 'Louis Pasteur', 'James Watson'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Qual a molécula que carrega a informação genética?',
+          correctAnswer: 'DNA',
+          incorrectAnswers: ['ATP', 'Glicose', 'Proteína'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Um indivíduo Aa é classificado como:',
+          correctAnswer: 'Heterozigoto',
+          incorrectAnswers: [
+            'Homozigoto dominante',
+            'Homozigoto recessivo',
+            'Haplóide',
+          ],
+          difficulty: 'medium',
+        },
+        {
+          title: 'Qual o resultado do cruzamento Aa x Aa em termos de genótipo?',
+          correctAnswer: '1 AA : 2 Aa : 1 aa',
+          incorrectAnswers: ['100% Aa', '3 AA : 1 aa', '1 AA : 1 aa'],
+          difficulty: 'hard',
+        },
+      ],
+      'Ecologia': [
+        {
+          title: 'O conjunto de seres vivos de uma mesma espécie numa mesma área é:',
+          correctAnswer: 'População',
+          incorrectAnswers: ['Comunidade', 'Ecossistema', 'Bioma'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Em uma cadeia alimentar, quem são os produtores?',
+          correctAnswer: 'Organismos fotossintetizantes como plantas e algas',
+          incorrectAnswers: [
+            'Herbívoros',
+            'Carnívoros de topo',
+            'Decompositores',
+          ],
+          difficulty: 'easy',
+        },
+        {
+          title: 'O que é uma relação de mutualismo?',
+          correctAnswer: 'Interação em que ambas as espécies se beneficiam',
+          incorrectAnswers: [
+            'Uma espécie se beneficia e a outra é prejudicada',
+            'Ambas as espécies são prejudicadas',
+            'Uma espécie se beneficia e a outra é neutra',
+          ],
+          difficulty: 'medium',
+        },
+        {
+          title: 'O ciclo biogeoquímico do carbono envolve principalmente:',
+          correctAnswer: 'Fotossíntese, respiração, decomposição e combustão',
+          incorrectAnswers: [
+            'Apenas fotossíntese e respiração',
+            'Apenas combustão de combustíveis fósseis',
+            'Apenas decomposição de matéria orgânica',
+          ],
+          difficulty: 'hard',
+        },
+      ],
+    },
+  },
+  {
+    name: 'Física',
+    color: '#8b5cf6',
+    icon: 'atom',
+    topics: {
+      'Mecânica': [
+        {
+          title: 'A unidade de força no Sistema Internacional é:',
+          correctAnswer: 'Newton',
+          incorrectAnswers: ['Joule', 'Watt', 'Pascal'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'A fórmula correta da segunda lei de Newton é:',
+          correctAnswer: 'F = m · a',
+          incorrectAnswers: ['F = m / a', 'F = m + a', 'F = m · v'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Um corpo cai em queda livre a partir do repouso. Após 2 s, sua velocidade é: (g = 10 m/s²)',
+          correctAnswer: '20 m/s',
+          incorrectAnswers: ['10 m/s', '40 m/s', '5 m/s'],
+          difficulty: 'medium',
+        },
+        {
+          title: 'A energia cinética de um corpo de massa 2 kg a 3 m/s é:',
+          correctAnswer: '9 J',
+          incorrectAnswers: ['6 J', '18 J', '3 J'],
+          difficulty: 'hard',
+        },
+      ],
+      'Eletricidade': [
+        {
+          title: 'A unidade de corrente elétrica é:',
+          correctAnswer: 'Ampère',
+          incorrectAnswers: ['Volt', 'Ohm', 'Watt'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Pela lei de Ohm, se V = 12 V e R = 4 Ω, qual a corrente?',
+          correctAnswer: '3 A',
+          incorrectAnswers: ['48 A', '16 A', '0,33 A'],
+          difficulty: 'medium',
+        },
+        {
+          title: 'Dois resistores de 6 Ω em paralelo têm resistência equivalente de:',
+          correctAnswer: '3 Ω',
+          incorrectAnswers: ['12 Ω', '6 Ω', '0,5 Ω'],
+          difficulty: 'medium',
+        },
+        {
+          title: 'A potência dissipada em um resistor de 10 Ω sujeito a uma corrente de 2 A é:',
+          correctAnswer: '40 W',
+          incorrectAnswers: ['20 W', '10 W', '100 W'],
+          difficulty: 'hard',
+        },
+      ],
+      'Termologia': [
+        {
+          title: 'A unidade de temperatura no Sistema Internacional é:',
+          correctAnswer: 'Kelvin',
+          incorrectAnswers: ['Celsius', 'Fahrenheit', 'Joule'],
+          difficulty: 'easy',
+        },
+        {
+          title: '0 °C equivale, em Kelvin, a:',
+          correctAnswer: '273 K',
+          incorrectAnswers: ['0 K', '100 K', '373 K'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'O processo de transferência de calor por contato direto entre corpos é:',
+          correctAnswer: 'Condução',
+          incorrectAnswers: ['Convecção', 'Radiação', 'Irradiação'],
+          difficulty: 'medium',
+        },
+        {
+          title: 'Em uma transformação isobárica de um gás ideal, o que permanece constante?',
+          correctAnswer: 'A pressão',
+          incorrectAnswers: ['A temperatura', 'O volume', 'A massa'],
+          difficulty: 'hard',
+        },
+      ],
+    },
+  },
+  {
+    name: 'Química',
+    color: '#ec4899',
+    icon: 'flask',
+    topics: {
+      'Química Geral': [
+        {
+          title: 'Qual é o símbolo químico do sódio?',
+          correctAnswer: 'Na',
+          incorrectAnswers: ['So', 'S', 'Nd'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Quantos prótons tem o átomo de oxigênio?',
+          correctAnswer: '8',
+          incorrectAnswers: ['6', '10', '16'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'A fórmula química da água é:',
+          correctAnswer: 'H₂O',
+          incorrectAnswers: ['HO', 'H₂O₂', 'OH'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Um átomo com 11 prótons e 12 nêutrons tem número de massa:',
+          correctAnswer: '23',
+          incorrectAnswers: ['11', '12', '1'],
+          difficulty: 'medium',
+        },
+      ],
+      'Química Orgânica': [
+        {
+          title: 'O elemento principal da química orgânica é:',
+          correctAnswer: 'Carbono',
+          incorrectAnswers: ['Oxigênio', 'Nitrogênio', 'Hidrogênio'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'A fórmula C₂H₆ corresponde a qual hidrocarboneto?',
+          correctAnswer: 'Etano',
+          incorrectAnswers: ['Metano', 'Propano', 'Eteno'],
+          difficulty: 'medium',
+        },
+        {
+          title: 'O grupo funcional —OH caracteriza:',
+          correctAnswer: 'Álcool',
+          incorrectAnswers: ['Ácido carboxílico', 'Éter', 'Aldeído'],
+          difficulty: 'medium',
+        },
+        {
+          title: 'Qual composto é um exemplo de hidrocarboneto aromático?',
+          correctAnswer: 'Benzeno',
+          incorrectAnswers: ['Etano', 'Etanol', 'Acetileno'],
+          difficulty: 'hard',
+        },
+      ],
+      'Físico-Química': [
+        {
+          title: 'O pH de uma solução neutra é:',
+          correctAnswer: '7',
+          incorrectAnswers: ['0', '14', '1'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Qual a relação entre concentração em quantidade de matéria e volume?',
+          correctAnswer: 'M = n / V',
+          incorrectAnswers: ['M = V / n', 'M = n · V', 'M = n + V'],
+          difficulty: 'medium',
+        },
+        {
+          title: 'A reação em que há liberação de calor é chamada:',
+          correctAnswer: 'Exotérmica',
+          incorrectAnswers: ['Endotérmica', 'Isotérmica', 'Adiabática'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Na equação termoquímica H₂ + ½O₂ → H₂O, ΔH = -286 kJ/mol. Isso indica:',
+          correctAnswer: 'Uma reação exotérmica que libera 286 kJ por mol de água formada',
+          incorrectAnswers: [
+            'Uma reação endotérmica que absorve 286 kJ',
+            'Uma reação em equilíbrio',
+            'Uma reação espontânea sem troca de calor',
+          ],
+          difficulty: 'hard',
+        },
+      ],
+    },
+  },
+  {
+    name: 'Inglês',
+    color: '#06b6d4',
+    icon: 'languages',
+    topics: {
+      'Vocabulário': [
+        {
+          title: 'What is the English word for "livro"?',
+          correctAnswer: 'book',
+          incorrectAnswers: ['pen', 'table', 'chair'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Qual é a tradução de "yesterday"?',
+          correctAnswer: 'Ontem',
+          incorrectAnswers: ['Hoje', 'Amanhã', 'Depois'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Complete: "I _____ coffee every morning."',
+          correctAnswer: 'drink',
+          incorrectAnswers: ['drinks', 'drinking', 'drank'],
+          difficulty: 'medium',
+        },
+        {
+          title: '"Break a leg" é uma expressão que significa:',
+          correctAnswer: 'Boa sorte',
+          incorrectAnswers: ['Quebrar uma perna', 'Ter cuidado', 'Ficar em casa'],
+          difficulty: 'hard',
+        },
+      ],
+      'Gramática': [
+        {
+          title: 'Qual o passado do verbo "to go"?',
+          correctAnswer: 'went',
+          incorrectAnswers: ['goed', 'gone', 'going'],
+          difficulty: 'easy',
+        },
+        {
+          title: 'Complete: "She has _____ to Paris three times."',
+          correctAnswer: 'been',
+          incorrectAnswers: ['be', 'being', 'was'],
+          difficulty: 'medium',
+        },
+        {
+          title: 'Which sentence is in the Present Continuous?',
+          correctAnswer: 'I am studying English',
+          incorrectAnswers: ['I study English', 'I studied English', 'I will study English'],
+          difficulty: 'easy',
+        },
+        {
+          title: '"If I had studied, I would have passed" é um exemplo de:',
+          correctAnswer: 'Third conditional',
+          incorrectAnswers: [
+            'Zero conditional',
+            'First conditional',
+            'Second conditional',
+          ],
+          difficulty: 'hard',
+        },
+      ],
+    },
+  },
+]
+
 async function main() {
+  console.log('🧹 Limpando dados antigos...')
   await prisma.question.deleteMany()
-  await prisma.category.deleteMany()
+  await prisma.topic.deleteMany()
+  await prisma.subject.deleteMany()
   await prisma.user.deleteMany()
 
-  // Criar admin padrão
+  console.log('👤 Criando admin...')
   const hashedPassword = await bcrypt.hash('AbacateTunado2000#@', 10)
   await prisma.user.create({
     data: {
@@ -18,409 +721,42 @@ async function main() {
       role: 'admin',
     },
   })
-  console.log('✔ Admin criado: admin@questions.com / admin123')
+  console.log('   ✔ suporte@zenixcode.com.br')
 
-  const html = await prisma.category.create({ data: { name: 'HTML' } })
-  const css = await prisma.category.create({ data: { name: 'CSS' } })
-  const js = await prisma.category.create({ data: { name: 'JavaScript' } })
+  let totalQuestions = 0
+  for (const subjectData of subjects) {
+    const subject = await prisma.subject.create({
+      data: {
+        name: subjectData.name,
+        slug: slugify(subjectData.name),
+        color: subjectData.color,
+        icon: subjectData.icon,
+      },
+    })
+    console.log(`📚 ${subject.name}`)
 
-  const questions = [
-    // ─── HTML · easy ────────────────────────────────────────────────
-    {
-      title: 'O que significa a sigla HTML?',
-      correctAnswer: 'HyperText Markup Language',
-      incorrectAnswers: ['HyperText Machine Language', 'HighText Markup Language', 'HyperTool Markup Language'],
-      difficulty: 'easy',
-      categoryId: html.id,
-    },
-    {
-      title: 'Qual tag é usada para criar um parágrafo em HTML?',
-      correctAnswer: '<p>',
-      incorrectAnswers: ['<paragraph>', '<text>', '<pg>'],
-      difficulty: 'easy',
-      categoryId: html.id,
-    },
-    {
-      title: 'Qual tag define o título principal de uma página HTML?',
-      correctAnswer: '<h1>',
-      incorrectAnswers: ['<head>', '<title>', '<header>'],
-      difficulty: 'easy',
-      categoryId: html.id,
-    },
-    {
-      title: 'Qual atributo da tag <img> define o texto alternativo da imagem?',
-      correctAnswer: 'alt',
-      incorrectAnswers: ['title', 'src', 'description'],
-      difficulty: 'easy',
-      categoryId: html.id,
-    },
-    {
-      title: 'Qual tag é usada para criar um link em HTML?',
-      correctAnswer: '<a>',
-      incorrectAnswers: ['<link>', '<href>', '<nav>'],
-      difficulty: 'easy',
-      categoryId: html.id,
-    },
-    {
-      title: 'Qual tag HTML é usada para criar uma lista não ordenada?',
-      correctAnswer: '<ul>',
-      incorrectAnswers: ['<ol>', '<list>', '<li>'],
-      difficulty: 'easy',
-      categoryId: html.id,
-    },
+    for (const [topicName, questions] of Object.entries(subjectData.topics)) {
+      const topic = await prisma.topic.create({
+        data: {
+          name: topicName,
+          slug: slugify(topicName),
+          subjectId: subject.id,
+        },
+      })
 
-    // ─── HTML · medium ──────────────────────────────────────────────
-    {
-      title: 'Qual atributo define para onde um formulário HTML envia os dados?',
-      correctAnswer: 'action',
-      incorrectAnswers: ['method', 'target', 'href'],
-      difficulty: 'medium',
-      categoryId: html.id,
-    },
-    {
-      title: 'Qual é a tag correta para inserir um arquivo JavaScript externo?',
-      correctAnswer: '<script src="file.js">',
-      incorrectAnswers: ['<js src="file.js">', '<javascript href="file.js">', '<script href="file.js">'],
-      difficulty: 'medium',
-      categoryId: html.id,
-    },
-    {
-      title: 'Qual tag HTML5 é usada para agrupar conteúdo de navegação?',
-      correctAnswer: '<nav>',
-      incorrectAnswers: ['<menu>', '<navigation>', '<header>'],
-      difficulty: 'medium',
-      categoryId: html.id,
-    },
-    {
-      title: 'O que faz o atributo "defer" na tag <script>?',
-      correctAnswer: 'Faz o script ser executado após o HTML ser completamente carregado',
-      incorrectAnswers: [
-        'Faz o script ser executado antes do HTML',
-        'Desabilita o script',
-        'Carrega o script de forma síncrona',
-      ],
-      difficulty: 'medium',
-      categoryId: html.id,
-    },
-    {
-      title: 'Qual atributo torna um campo de formulário obrigatório?',
-      correctAnswer: 'required',
-      incorrectAnswers: ['mandatory', 'validate', 'needed'],
-      difficulty: 'medium',
-      categoryId: html.id,
-    },
+      await prisma.question.createMany({
+        data: questions.map((q) => ({
+          ...q,
+          topicId: topic.id,
+          status: 'approved',
+        })),
+      })
+      totalQuestions += questions.length
+      console.log(`   └─ ${topicName}: ${questions.length} questões`)
+    }
+  }
 
-    // ─── HTML · hard ────────────────────────────────────────────────
-    {
-      title: 'O que é o atributo "contenteditable" em HTML?',
-      correctAnswer: 'Permite que o conteúdo do elemento seja editado pelo usuário diretamente no navegador',
-      incorrectAnswers: [
-        'Define que o elemento pode ser copiado',
-        'Torna o elemento arrastável',
-        'Permite editar o CSS do elemento pelo navegador',
-      ],
-      difficulty: 'hard',
-      categoryId: html.id,
-    },
-    {
-      title: 'Qual é a diferença entre os atributos "async" e "defer" em uma tag <script>?',
-      correctAnswer: '"async" executa o script assim que é baixado; "defer" aguarda o HTML ser parseado',
-      incorrectAnswers: [
-        '"async" aguarda o HTML; "defer" executa imediatamente',
-        'Ambos fazem a mesma coisa',
-        '"async" é para módulos ES6; "defer" é para scripts comuns',
-      ],
-      difficulty: 'hard',
-      categoryId: html.id,
-    },
-    {
-      title: 'Para que serve o elemento <template> no HTML5?',
-      correctAnswer: 'Armazena conteúdo HTML inerte que pode ser clonado e inserido no DOM via JavaScript',
-      incorrectAnswers: [
-        'Define o layout padrão da página',
-        'Cria templates de e-mail',
-        'Substitui o uso de iframes',
-      ],
-      difficulty: 'hard',
-      categoryId: html.id,
-    },
-
-    // ─── CSS · easy ─────────────────────────────────────────────────
-    {
-      title: 'O que significa CSS?',
-      correctAnswer: 'Cascading Style Sheets',
-      incorrectAnswers: ['Creative Style Sheets', 'Computer Style Sheets', 'Colorful Style Sheets'],
-      difficulty: 'easy',
-      categoryId: css.id,
-    },
-    {
-      title: 'Qual propriedade CSS define a cor do texto?',
-      correctAnswer: 'color',
-      incorrectAnswers: ['text-color', 'font-color', 'foreground'],
-      difficulty: 'easy',
-      categoryId: css.id,
-    },
-    {
-      title: 'Qual propriedade CSS define a cor de fundo de um elemento?',
-      correctAnswer: 'background-color',
-      incorrectAnswers: ['bg-color', 'background', 'color-background'],
-      difficulty: 'easy',
-      categoryId: css.id,
-    },
-    {
-      title: 'Como se seleciona um elemento com id "titulo" no CSS?',
-      correctAnswer: '#titulo',
-      incorrectAnswers: ['.titulo', 'titulo', '*titulo'],
-      difficulty: 'easy',
-      categoryId: css.id,
-    },
-    {
-      title: 'Como se seleciona todos os elementos com a classe "card" no CSS?',
-      correctAnswer: '.card',
-      incorrectAnswers: ['#card', 'card', '*card'],
-      difficulty: 'easy',
-      categoryId: css.id,
-    },
-
-    // ─── CSS · medium ───────────────────────────────────────────────
-    {
-      title: 'Qual valor da propriedade "display" torna um elemento flexível?',
-      correctAnswer: 'flex',
-      incorrectAnswers: ['block', 'inline', 'grid'],
-      difficulty: 'medium',
-      categoryId: css.id,
-    },
-    {
-      title: 'Qual propriedade CSS controla o espaço interno de um elemento?',
-      correctAnswer: 'padding',
-      incorrectAnswers: ['margin', 'spacing', 'border-spacing'],
-      difficulty: 'medium',
-      categoryId: css.id,
-    },
-    {
-      title: 'Qual propriedade CSS é usada para tornar um elemento posicionado em relação ao elemento pai?',
-      correctAnswer: 'position: absolute',
-      incorrectAnswers: ['position: relative', 'position: fixed', 'position: static'],
-      difficulty: 'medium',
-      categoryId: css.id,
-    },
-    {
-      title: 'O que faz a propriedade "z-index" no CSS?',
-      correctAnswer: 'Controla a ordem de empilhamento dos elementos no eixo Z',
-      incorrectAnswers: [
-        'Define o zoom do elemento',
-        'Controla a opacidade do elemento',
-        'Define o índice de acessibilidade',
-      ],
-      difficulty: 'medium',
-      categoryId: css.id,
-    },
-    {
-      title: 'Qual unidade CSS é relativa ao tamanho da fonte do elemento raiz (<html>)?',
-      correctAnswer: 'rem',
-      incorrectAnswers: ['em', 'px', 'vh'],
-      difficulty: 'medium',
-      categoryId: css.id,
-    },
-    {
-      title: 'Qual propriedade CSS é usada para criar animações?',
-      correctAnswer: 'animation',
-      incorrectAnswers: ['transition', 'transform', 'motion'],
-      difficulty: 'medium',
-      categoryId: css.id,
-    },
-
-    // ─── CSS · hard ─────────────────────────────────────────────────
-    {
-      title: 'O que é especificidade no CSS e como ela é calculada?',
-      correctAnswer: 'É o peso de um seletor; calculado por (id, classe/atributo/pseudo-classe, elemento)',
-      incorrectAnswers: [
-        'É a ordem em que os estilos aparecem no arquivo',
-        'É o número de propriedades que um seletor possui',
-        'É definida pelo navegador automaticamente',
-      ],
-      difficulty: 'hard',
-      categoryId: css.id,
-    },
-    {
-      title: 'O que faz a função CSS "clamp(min, preferido, max)"?',
-      correctAnswer: 'Restringe um valor entre um mínimo e um máximo, usando o valor preferido quando possível',
-      incorrectAnswers: [
-        'Fixa o tamanho do elemento independente da tela',
-        'Cria um gradiente entre dois valores',
-        'Limita o número de linhas de texto exibidas',
-      ],
-      difficulty: 'hard',
-      categoryId: css.id,
-    },
-    {
-      title: 'O que são CSS Custom Properties (variáveis CSS)?',
-      correctAnswer: 'Variáveis definidas com -- que podem ser reutilizadas via var() em todo o stylesheet',
-      incorrectAnswers: [
-        'Propriedades exclusivas de navegadores específicos',
-        'Funções JavaScript injetadas no CSS',
-        'Classes geradas automaticamente pelo navegador',
-      ],
-      difficulty: 'hard',
-      categoryId: css.id,
-    },
-
-    // ─── JavaScript · easy ──────────────────────────────────────────
-    {
-      title: 'Qual keyword é usada para declarar uma variável de escopo de bloco em JavaScript?',
-      correctAnswer: 'let',
-      incorrectAnswers: ['var', 'def', 'int'],
-      difficulty: 'easy',
-      categoryId: js.id,
-    },
-    {
-      title: 'Como se escreve um comentário de linha única em JavaScript?',
-      correctAnswer: '//',
-      incorrectAnswers: ['#', '/* */', '<!-- -->'],
-      difficulty: 'easy',
-      categoryId: js.id,
-    },
-    {
-      title: 'Qual método de array adiciona um elemento ao final?',
-      correctAnswer: 'push()',
-      incorrectAnswers: ['pop()', 'shift()', 'append()'],
-      difficulty: 'easy',
-      categoryId: js.id,
-    },
-    {
-      title: 'Qual operador é usado para comparação estrita em JavaScript?',
-      correctAnswer: '===',
-      incorrectAnswers: ['==', '=', '!=='],
-      difficulty: 'easy',
-      categoryId: js.id,
-    },
-    {
-      title: 'Como se converte uma string para número inteiro em JavaScript?',
-      correctAnswer: 'parseInt()',
-      incorrectAnswers: ['toInt()', 'Number.parse()', 'int()'],
-      difficulty: 'easy',
-      categoryId: js.id,
-    },
-    {
-      title: 'Qual método é usado para imprimir algo no console do navegador?',
-      correctAnswer: 'console.log()',
-      incorrectAnswers: ['print()', 'log()', 'console.print()'],
-      difficulty: 'easy',
-      categoryId: js.id,
-    },
-
-    // ─── JavaScript · medium ────────────────────────────────────────
-    {
-      title: 'O que é hoisting em JavaScript?',
-      correctAnswer: 'O comportamento de mover declarações de variáveis e funções para o topo do escopo antes da execução',
-      incorrectAnswers: [
-        'Uma forma de importar módulos dinamicamente',
-        'O processo de converter tipos automaticamente',
-        'Um método para elevar a prioridade de uma Promise',
-      ],
-      difficulty: 'medium',
-      categoryId: js.id,
-    },
-    {
-      title: 'O que retorna typeof null em JavaScript?',
-      correctAnswer: '"object"',
-      incorrectAnswers: ['"null"', '"undefined"', '"boolean"'],
-      difficulty: 'medium',
-      categoryId: js.id,
-    },
-    {
-      title: 'Qual método de array retorna um novo array com os elementos que passam em um teste?',
-      correctAnswer: 'filter()',
-      incorrectAnswers: ['find()', 'map()', 'reduce()'],
-      difficulty: 'medium',
-      categoryId: js.id,
-    },
-    {
-      title: 'O que é uma closure em JavaScript?',
-      correctAnswer: 'Uma função que mantém acesso ao escopo da função onde foi criada mesmo após ela ter retornado',
-      incorrectAnswers: [
-        'Uma função sem parâmetros',
-        'Um método para fechar conexões assíncronas',
-        'Uma função que não pode ser reatribuída',
-      ],
-      difficulty: 'medium',
-      categoryId: js.id,
-    },
-    {
-      title: 'Qual a diferença entre "==" e "===" em JavaScript?',
-      correctAnswer: '"==" compara valores com coerção de tipo; "===" compara valor e tipo sem coerção',
-      incorrectAnswers: [
-        'Não há diferença',
-        '"===" é apenas para strings',
-        '"==" é mais seguro que "==="',
-      ],
-      difficulty: 'medium',
-      categoryId: js.id,
-    },
-    {
-      title: 'O que faz o método Array.prototype.reduce()?',
-      correctAnswer: 'Acumula todos os valores de um array em um único resultado usando uma função callback',
-      incorrectAnswers: [
-        'Remove duplicatas de um array',
-        'Ordena os elementos do array',
-        'Retorna o menor elemento do array',
-      ],
-      difficulty: 'medium',
-      categoryId: js.id,
-    },
-
-    // ─── JavaScript · hard ──────────────────────────────────────────
-    {
-      title: 'O que é o Event Loop em JavaScript?',
-      correctAnswer: 'Mecanismo que monitora a call stack e a callback queue, executando callbacks quando a stack está vazia',
-      incorrectAnswers: [
-        'Um loop infinito que escuta eventos do DOM',
-        'Uma fila de Promises pendentes',
-        'O ciclo de vida de componentes no React',
-      ],
-      difficulty: 'hard',
-      categoryId: js.id,
-    },
-    {
-      title: 'Qual é a diferença entre Promise e async/await em JavaScript?',
-      correctAnswer: 'async/await é açúcar sintático sobre Promises, tornando código assíncrono mais legível e síncrono visualmente',
-      incorrectAnswers: [
-        'Promises são mais rápidas que async/await',
-        'async/await não pode tratar erros',
-        'São implementações completamente diferentes sem relação',
-      ],
-      difficulty: 'hard',
-      categoryId: js.id,
-    },
-    {
-      title: 'O que é o prototype chain em JavaScript?',
-      correctAnswer: 'Mecanismo pelo qual objetos herdam propriedades e métodos de outros objetos através de uma cadeia de protótipos',
-      incorrectAnswers: [
-        'Uma lista de métodos nativos do JavaScript',
-        'A ordem de execução das funções no call stack',
-        'Um padrão de design para encadeamento de funções',
-      ],
-      difficulty: 'hard',
-      categoryId: js.id,
-    },
-    {
-      title: 'O que são Generators em JavaScript e para que servem?',
-      correctAnswer: 'Funções que podem pausar e retomar sua execução usando yield, úteis para iteração lazy e controle de fluxo',
-      incorrectAnswers: [
-        'Funções que geram números aleatórios',
-        'Construtores automáticos de classes',
-        'Métodos para gerar IDs únicos',
-      ],
-      difficulty: 'hard',
-      categoryId: js.id,
-    },
-  ]
-
-  await prisma.question.createMany({
-    data: questions.map(q => ({ ...q, status: 'approved' })),
-  })
-
-  console.log(`✔ ${questions.length} questões criadas (approved) com sucesso.`)
+  console.log(`\n✔ Seed completo: ${subjects.length} matérias, ${totalQuestions} questões.`)
 }
 
 main()

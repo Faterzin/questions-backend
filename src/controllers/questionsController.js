@@ -1,10 +1,37 @@
 const prisma = require('../lib/prisma')
 
 const VALID_DIFFICULTIES = ['easy', 'medium', 'hard']
+const VALID_STATUSES = ['pending', 'approved', 'rejected']
+
+const QUESTION_INCLUDE = {
+  topic: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      subject: { select: { id: true, name: true, slug: true, color: true, icon: true } },
+    },
+  },
+  reviewedBy: { select: { id: true, name: true, email: true } },
+}
+
+function parseSubjectFilter(subject) {
+  return {
+    topic: {
+      subject: { OR: [{ slug: subject }, { name: { equals: subject, mode: 'insensitive' } }] },
+    },
+  }
+}
+
+function parseTopicFilter(topic) {
+  return {
+    topic: { OR: [{ slug: topic }, { name: { equals: topic, mode: 'insensitive' } }] },
+  }
+}
 
 // GET /questions — público, só retorna approved
 async function listQuestions(req, res) {
-  const { category, difficulty, limit, page = 1 } = req.query
+  const { subject, topic, difficulty, limit, page = 1 } = req.query
 
   if (difficulty && !VALID_DIFFICULTIES.includes(difficulty)) {
     return res.status(400).json({
@@ -18,16 +45,15 @@ async function listQuestions(req, res) {
   const where = {
     status: 'approved',
     ...(difficulty && { difficulty }),
-    ...(category && {
-      category: { name: { equals: category, mode: 'insensitive' } },
-    }),
+    ...(subject && parseSubjectFilter(subject)),
+    ...(topic && parseTopicFilter(topic)),
   }
 
   const [questions, total] = await Promise.all([
     prisma.question.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      include: { category: { select: { id: true, name: true } } },
+      include: QUESTION_INCLUDE,
       ...(take && { take }),
       ...(skip && { skip }),
     }),
@@ -44,11 +70,20 @@ async function listQuestions(req, res) {
 
 // POST /questions — público, cria como pending
 async function createQuestion(req, res) {
-  const { title, correctAnswer, incorrectAnswers, difficulty, categoryId, categoryName, submittedBy } = req.body
+  const {
+    title,
+    correctAnswer,
+    incorrectAnswers,
+    difficulty,
+    topicId,
+    submitterName,
+    submitterEmail,
+    source,
+  } = req.body
 
-  if (!title || !correctAnswer || !incorrectAnswers || !difficulty) {
+  if (!title || !correctAnswer || !incorrectAnswers || !difficulty || !topicId) {
     return res.status(400).json({
-      error: 'Campos obrigatórios: title, correctAnswer, incorrectAnswers, difficulty',
+      error: 'Campos obrigatórios: title, correctAnswer, incorrectAnswers, difficulty, topicId',
     })
   }
 
@@ -62,22 +97,9 @@ async function createQuestion(req, res) {
     })
   }
 
-  let resolvedCategoryId = categoryId
-
-  if (!resolvedCategoryId && categoryName) {
-    let category = await prisma.category.findFirst({
-      where: { name: { equals: categoryName, mode: 'insensitive' } },
-    })
-
-    if (!category) {
-      category = await prisma.category.create({ data: { name: categoryName } })
-    }
-
-    resolvedCategoryId = category.id
-  }
-
-  if (!resolvedCategoryId) {
-    return res.status(400).json({ error: 'categoryId ou categoryName é obrigatório' })
+  const topic = await prisma.topic.findUnique({ where: { id: topicId } })
+  if (!topic) {
+    return res.status(404).json({ error: 'Assunto não encontrado' })
   }
 
   const question = await prisma.question.create({
@@ -86,11 +108,14 @@ async function createQuestion(req, res) {
       correctAnswer,
       incorrectAnswers,
       difficulty,
-      categoryId: resolvedCategoryId,
+      topicId,
       status: 'pending',
-      submittedBy: submittedBy || null,
+      submitterName: submitterName || null,
+      submitterEmail: submitterEmail || null,
+      source: source || null,
+      submittedBy: req.user?.id || null,
     },
-    include: { category: { select: { id: true, name: true } } },
+    include: QUESTION_INCLUDE,
   })
 
   return res.status(201).json(question)
@@ -98,7 +123,7 @@ async function createQuestion(req, res) {
 
 // GET /questions/all — admin: lista com filtro de status
 async function listAllQuestions(req, res) {
-  const { category, difficulty, status, limit = 20, page = 1 } = req.query
+  const { subject, topic, difficulty, status, limit = 20, page = 1 } = req.query
 
   const take = parseInt(limit)
   const skip = (parseInt(page) - 1) * take
@@ -106,16 +131,15 @@ async function listAllQuestions(req, res) {
   const where = {
     ...(status && { status }),
     ...(difficulty && { difficulty }),
-    ...(category && {
-      category: { name: { equals: category, mode: 'insensitive' } },
-    }),
+    ...(subject && parseSubjectFilter(subject)),
+    ...(topic && parseTopicFilter(topic)),
   }
 
   const [questions, total] = await Promise.all([
     prisma.question.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      include: { category: { select: { id: true, name: true } } },
+      include: QUESTION_INCLUDE,
       take,
       skip,
     }),
@@ -134,16 +158,25 @@ async function listAllQuestions(req, res) {
 // PATCH /questions/:id/review — admin: aprovar ou rejeitar
 async function reviewQuestion(req, res) {
   const { id } = req.params
-  const { status } = req.body
+  const { status, rejectReason } = req.body
 
   if (!['approved', 'rejected'].includes(status)) {
     return res.status(400).json({ error: 'status deve ser "approved" ou "rejected"' })
   }
 
+  if (status === 'rejected' && !rejectReason) {
+    return res.status(400).json({ error: 'rejectReason é obrigatório ao rejeitar' })
+  }
+
   const question = await prisma.question.update({
     where: { id },
-    data: { status },
-    include: { category: { select: { id: true, name: true } } },
+    data: {
+      status,
+      rejectReason: status === 'rejected' ? rejectReason : null,
+      reviewedById: req.user.id,
+      reviewedAt: new Date(),
+    },
+    include: QUESTION_INCLUDE,
   })
 
   return res.json(question)
@@ -152,13 +185,22 @@ async function reviewQuestion(req, res) {
 // PUT /questions/:id — admin: editar questão
 async function updateQuestion(req, res) {
   const { id } = req.params
-  const { title, correctAnswer, incorrectAnswers, difficulty, categoryId, categoryName, status } = req.body
+  const { title, correctAnswer, incorrectAnswers, difficulty, topicId, status, source } = req.body
 
   const data = {}
   if (title !== undefined) data.title = title
   if (correctAnswer !== undefined) data.correctAnswer = correctAnswer
   if (incorrectAnswers !== undefined) data.incorrectAnswers = incorrectAnswers
-  if (status !== undefined) data.status = status
+  if (topicId !== undefined) data.topicId = topicId
+  if (source !== undefined) data.source = source || null
+
+  if (status !== undefined) {
+    if (!VALID_STATUSES.includes(status)) {
+      return res.status(400).json({ error: `status inválido. Use: ${VALID_STATUSES.join(', ')}` })
+    }
+    data.status = status
+  }
+
   if (difficulty !== undefined) {
     if (!VALID_DIFFICULTIES.includes(difficulty)) {
       return res.status(400).json({ error: `Dificuldade inválida. Use: ${VALID_DIFFICULTIES.join(', ')}` })
@@ -166,22 +208,10 @@ async function updateQuestion(req, res) {
     data.difficulty = difficulty
   }
 
-  if (categoryId) {
-    data.categoryId = categoryId
-  } else if (categoryName) {
-    let category = await prisma.category.findFirst({
-      where: { name: { equals: categoryName, mode: 'insensitive' } },
-    })
-    if (!category) {
-      category = await prisma.category.create({ data: { name: categoryName } })
-    }
-    data.categoryId = category.id
-  }
-
   const question = await prisma.question.update({
     where: { id },
     data,
-    include: { category: { select: { id: true, name: true } } },
+    include: QUESTION_INCLUDE,
   })
 
   return res.json(question)
@@ -196,14 +226,32 @@ async function deleteQuestion(req, res) {
 
 // GET /questions/stats — admin: contagem por status
 async function getStats(req, res) {
-  const [pending, approved, rejected, total] = await Promise.all([
+  const [pending, approved, rejected, total, bySubject] = await Promise.all([
     prisma.question.count({ where: { status: 'pending' } }),
     prisma.question.count({ where: { status: 'approved' } }),
     prisma.question.count({ where: { status: 'rejected' } }),
     prisma.question.count(),
+    prisma.subject.findMany({
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        topics: {
+          select: { _count: { select: { questions: true } } },
+        },
+      },
+    }),
   ])
 
-  return res.json({ pending, approved, rejected, total })
+  const subjectCounts = bySubject.map((s) => ({
+    id: s.id,
+    name: s.name,
+    slug: s.slug,
+    total: s.topics.reduce((acc, t) => acc + t._count.questions, 0),
+  }))
+
+  return res.json({ pending, approved, rejected, total, bySubject: subjectCounts })
 }
 
 module.exports = {

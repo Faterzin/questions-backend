@@ -3,7 +3,8 @@ const cors = require('cors')
 const questionsRouter = require('./routes/questions')
 const authRouter = require('./routes/auth')
 const usersRouter = require('./routes/users')
-const categoriesRouter = require('./routes/categories')
+const subjectsRouter = require('./routes/subjects')
+const topicsRouter = require('./routes/topics')
 
 const app = express()
 
@@ -17,6 +18,7 @@ app.get('/', (req, res) => {
 app.use('/auth', authRouter)
 app.use('/questions', questionsRouter)
 app.use('/users', usersRouter)
-app.use('/categories', categoriesRouter)
+app.use('/subjects', subjectsRouter)
+app.use('/topics', topicsRouter)
 
 module.exports = app

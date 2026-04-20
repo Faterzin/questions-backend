@@ -34,16 +34,36 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  reviewedQuestions Question[] @relation("QuestionReviewer")
+
   @@map("users")
 }
 
-model Category {
-  id        String     @id @default(uuid())
-  name      String     @unique
-  createdAt DateTime   @default(now())
+model Subject {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  color     String?
+  icon      String?
+  createdAt DateTime @default(now())
+
+  topics Topic[]
+
+  @@map("subjects")
+}
+
+model Topic {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String
+  subjectId String
+  createdAt DateTime @default(now())
+
+  subject   Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   questions Question[]
 
-  @@map("categories")
+  @@unique([subjectId, slug])
+  @@map("topics")
 }
 
 model Question {
@@ -53,12 +73,21 @@ model Question {
   incorrectAnswers String[]
   difficulty       Difficulty     @default(easy)
   status           QuestionStatus @default(pending)
-  categoryId       String
-  category         Category       @relation(fields: [categoryId], references: [id])
+  topicId          String
+  submitterName    String?
+  submitterEmail   String?
+  source           String?
   submittedBy      String?
+  reviewedById     String?
+  reviewedAt       DateTime?
+  rejectReason     String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
+  topic      Topic @relation(fields: [topicId], references: [id], onDelete: Restrict)
+  reviewedBy User? @relation("QuestionReviewer", fields: [reviewedById], references: [id])
+
   @@index([status])
+  @@index([topicId])
   @@map("questions")
 }
