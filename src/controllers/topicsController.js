@@ -1,11 +1,20 @@
 const prisma = require('../lib/prisma')
 const { slugify } = require('../lib/slug')
 
+const VALID_TOPIC_STATUSES = ['pending', 'approved']
+
 async function listTopics(req, res) {
-  const { subjectId } = req.query
+  const { subjectId, status } = req.query
+
+  if (status && !VALID_TOPIC_STATUSES.includes(status)) {
+    return res.status(400).json({ error: `status inválido. Use: ${VALID_TOPIC_STATUSES.join(', ')}` })
+  }
 
   const topics = await prisma.topic.findMany({
-    where: subjectId ? { subjectId } : undefined,
+    where: {
+      ...(subjectId && { subjectId }),
+      ...(status && { status }),
+    },
     orderBy: [{ subject: { name: 'asc' } }, { name: 'asc' }],
     include: {
       subject: { select: { id: true, name: true, slug: true } },
@@ -38,7 +47,7 @@ async function createTopic(req, res) {
   }
 
   const topic = await prisma.topic.create({
-    data: { name, slug, subjectId },
+    data: { name, slug, subjectId, status: 'approved' },
     include: {
       subject: { select: { id: true, name: true, slug: true } },
       _count: { select: { questions: true } },
@@ -46,6 +55,19 @@ async function createTopic(req, res) {
   })
 
   return res.status(201).json(topic)
+}
+
+async function approveTopic(req, res) {
+  const { id } = req.params
+  const topic = await prisma.topic.update({
+    where: { id },
+    data: { status: 'approved' },
+    include: {
+      subject: { select: { id: true, name: true, slug: true } },
+      _count: { select: { questions: true } },
+    },
+  })
+  return res.json(topic)
 }
 
 async function updateTopic(req, res) {
@@ -85,4 +107,4 @@ async function deleteTopic(req, res) {
   return res.status(204).send()
 }
 
-module.exports = { listTopics, createTopic, updateTopic, deleteTopic }
+module.exports = { listTopics, createTopic, updateTopic, deleteTopic, approveTopic }

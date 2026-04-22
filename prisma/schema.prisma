@@ -24,6 +24,11 @@ enum QuestionStatus {
   rejected
 }
 
+enum TopicStatus {
+  pending
+  approved
+}
+
 model User {
   id        String   @id @default(uuid())
   name      String
@@ -53,16 +58,18 @@ model Subject {
 }
 
 model Topic {
-  id        String   @id @default(uuid())
+  id        String      @id @default(uuid())
   name      String
   slug      String
   subjectId String
-  createdAt DateTime @default(now())
+  status    TopicStatus @default(approved)
+  createdAt DateTime    @default(now())
 
   subject   Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   questions Question[]
 
   @@unique([subjectId, slug])
+  @@index([status])
   @@map("topics")
 }
 

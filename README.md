@@ -82,7 +82,8 @@ GET /questions?limit=10&page=1&encode=base64
       "incorrectAnswers": [
         "Uma função sem parâmetros",
         "Um método para fechar conexões assíncronas",
-        "Uma função que não pode ser reatribuída"
+        "Uma função que não pode ser reatribuída",
+        "Uma variável de escopo global"
       ],
       "difficulty": "medium",
       "categoryId": "uuid",
@@ -115,7 +116,8 @@ A estrutura do JSON é preservada integralmente. Apenas os valores primitivos (s
       "incorrectAnswers": [
         "VW1hIGZ1bsOnw6NvIHNlbSBwYXLDom1ldHJvcw==",
         "VW0gbcOpdG9kbyBwYXJhIGZlY2hhciBjb25leOVlcw==",
-        "VW1hIGZ1bsOnw6NvIHF1ZSBuw6NvIHBvZGUgc2VyIHJlYXRyaWJ1w61kYQ=="
+        "VW1hIGZ1bsOnw6NvIHF1ZSBuw6NvIHBvZGUgc2VyIHJlYXRyaWJ1w61kYQ==",
+        "VW1hIHZhcmnDoXZlbCBkZSBlc2NvcG8gZ2xvYmFs"
       ],
       "difficulty": "bWVkaXVt",
       "categoryId": "dXVpZA==",

@@ -1,12 +1,15 @@
 const prisma = require('../lib/prisma')
 const { slugify } = require('../lib/slug')
 
+const APPROVED_TOPIC_WHERE = { status: 'approved' }
+
 async function listSubjects(req, res) {
   const subjects = await prisma.subject.findMany({
     orderBy: { name: 'asc' },
     include: {
-      _count: { select: { topics: true } },
+      _count: { select: { topics: { where: APPROVED_TOPIC_WHERE } } },
       topics: {
+        where: APPROVED_TOPIC_WHERE,
         orderBy: { name: 'asc' },
         include: { _count: { select: { questions: true } } },
       },
@@ -23,6 +26,7 @@ async function getSubject(req, res) {
     where: { id },
     include: {
       topics: {
+        where: APPROVED_TOPIC_WHERE,
         orderBy: { name: 'asc' },
         include: { _count: { select: { questions: true } } },
       },

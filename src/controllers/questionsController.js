@@ -1,7 +1,29 @@
 const prisma = require('../lib/prisma')
+const { slugify } = require('../lib/slug')
 
 const VALID_DIFFICULTIES = ['easy', 'medium', 'hard']
 const VALID_STATUSES = ['pending', 'approved', 'rejected']
+const INCORRECT_ANSWERS_COUNT = 4
+
+function validateIncorrectAnswers(incorrectAnswers, correctAnswer) {
+  if (!Array.isArray(incorrectAnswers)) {
+    return 'incorrectAnswers deve ser um array'
+  }
+  if (incorrectAnswers.length !== INCORRECT_ANSWERS_COUNT) {
+    return `incorrectAnswers deve conter exatamente ${INCORRECT_ANSWERS_COUNT} alternativas erradas (1 correta + ${INCORRECT_ANSWERS_COUNT} erradas = 5 opções)`
+  }
+  if (incorrectAnswers.some((a) => typeof a !== 'string' || !a.trim())) {
+    return `Todas as ${INCORRECT_ANSWERS_COUNT} alternativas incorretas devem ser strings não vazias`
+  }
+  const trimmed = incorrectAnswers.map((a) => a.trim())
+  if (new Set(trimmed).size !== INCORRECT_ANSWERS_COUNT) {
+    return 'As alternativas incorretas devem ser distintas entre si'
+  }
+  if (typeof correctAnswer === 'string' && trimmed.includes(correctAnswer.trim())) {
+    return 'A resposta correta não pode ser igual a uma das alternativas incorretas'
+  }
+  return null
+}
 
 const QUESTION_INCLUDE = {
   topic: {
@@ -76,19 +98,33 @@ async function createQuestion(req, res) {
     incorrectAnswers,
     difficulty,
     topicId,
+    subjectId,
+    topicName,
     submitterName,
     submitterEmail,
     source,
   } = req.body
 
-  if (!title || !correctAnswer || !incorrectAnswers || !difficulty || !topicId) {
+  if (!title || !correctAnswer || !incorrectAnswers || !difficulty) {
     return res.status(400).json({
-      error: 'Campos obrigatórios: title, correctAnswer, incorrectAnswers, difficulty, topicId',
+      error: 'Campos obrigatórios: title, correctAnswer, incorrectAnswers, difficulty',
     })
   }
 
-  if (!Array.isArray(incorrectAnswers) || incorrectAnswers.length === 0) {
-    return res.status(400).json({ error: 'incorrectAnswers deve ser um array com pelo menos 1 item' })
+  const hasTopicId = typeof topicId === 'string' && topicId.trim()
+  const hasNewTopic =
+    typeof subjectId === 'string' && subjectId.trim() &&
+    typeof topicName === 'string' && topicName.trim()
+
+  if (!hasTopicId && !hasNewTopic) {
+    return res.status(400).json({
+      error: 'Informe topicId (assunto existente) ou subjectId + topicName (novo assunto)',
+    })
+  }
+
+  const incorrectAnswersError = validateIncorrectAnswers(incorrectAnswers, correctAnswer)
+  if (incorrectAnswersError) {
+    return res.status(400).json({ error: incorrectAnswersError })
   }
 
   if (!VALID_DIFFICULTIES.includes(difficulty)) {
@@ -97,18 +133,45 @@ async function createQuestion(req, res) {
     })
   }
 
-  const topic = await prisma.topic.findUnique({ where: { id: topicId } })
-  if (!topic) {
-    return res.status(404).json({ error: 'Assunto não encontrado' })
+  let resolvedTopicId = hasTopicId ? topicId : null
+
+  if (hasTopicId) {
+    const topic = await prisma.topic.findUnique({ where: { id: topicId } })
+    if (!topic) {
+      return res.status(404).json({ error: 'Assunto não encontrado' })
+    }
+  } else {
+    const subject = await prisma.subject.findUnique({ where: { id: subjectId } })
+    if (!subject) {
+      return res.status(404).json({ error: 'Matéria não encontrada' })
+    }
+
+    const trimmedName = topicName.trim()
+    const slug = slugify(trimmedName)
+    if (!slug) {
+      return res.status(400).json({ error: 'topicName inválido' })
+    }
+
+    const existing = await prisma.topic.findUnique({
+      where: { subjectId_slug: { subjectId, slug } },
+    })
+    if (existing) {
+      resolvedTopicId = existing.id
+    } else {
+      const created = await prisma.topic.create({
+        data: { name: trimmedName, slug, subjectId, status: 'pending' },
+      })
+      resolvedTopicId = created.id
+    }
   }
 
   const question = await prisma.question.create({
     data: {
-      title,
-      correctAnswer,
-      incorrectAnswers,
+      title: title.trim(),
+      correctAnswer: correctAnswer.trim(),
+      incorrectAnswers: incorrectAnswers.map((a) => a.trim()),
       difficulty,
-      topicId,
+      topicId: resolvedTopicId,
       status: 'pending',
       submitterName: submitterName || null,
       submitterEmail: submitterEmail || null,
@@ -179,6 +242,13 @@ async function reviewQuestion(req, res) {
     include: QUESTION_INCLUDE,
   })
 
+  if (status === 'approved' && question.topic && question.topic.subject) {
+    await prisma.topic.updateMany({
+      where: { id: question.topicId, status: 'pending' },
+      data: { status: 'approved' },
+    })
+  }
+
   return res.json(question)
 }
 
@@ -188,11 +258,29 @@ async function updateQuestion(req, res) {
   const { title, correctAnswer, incorrectAnswers, difficulty, topicId, status, source } = req.body
 
   const data = {}
-  if (title !== undefined) data.title = title
-  if (correctAnswer !== undefined) data.correctAnswer = correctAnswer
-  if (incorrectAnswers !== undefined) data.incorrectAnswers = incorrectAnswers
+  if (title !== undefined) data.title = typeof title === 'string' ? title.trim() : title
+  if (correctAnswer !== undefined) {
+    data.correctAnswer = typeof correctAnswer === 'string' ? correctAnswer.trim() : correctAnswer
+  }
   if (topicId !== undefined) data.topicId = topicId
   if (source !== undefined) data.source = source || null
+
+  if (incorrectAnswers !== undefined) {
+    let referenceCorrect = data.correctAnswer
+    if (referenceCorrect === undefined) {
+      const existing = await prisma.question.findUnique({
+        where: { id },
+        select: { correctAnswer: true },
+      })
+      if (!existing) return res.status(404).json({ error: 'Questão não encontrada' })
+      referenceCorrect = existing.correctAnswer
+    }
+    const incorrectAnswersError = validateIncorrectAnswers(incorrectAnswers, referenceCorrect)
+    if (incorrectAnswersError) {
+      return res.status(400).json({ error: incorrectAnswersError })
+    }
+    data.incorrectAnswers = incorrectAnswers.map((a) => a.trim())
+  }
 
   if (status !== undefined) {
     if (!VALID_STATUSES.includes(status)) {

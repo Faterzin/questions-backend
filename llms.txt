@@ -66,7 +66,8 @@ Every question has the following shape:
   "incorrectAnswers": [
     "Uma função sem parâmetros",
     "Um método para fechar conexões assíncronas",
-    "Uma função que não pode ser reatribuída"
+    "Uma função que não pode ser reatribuída",
+    "Uma variável de escopo global"
   ],
   "difficulty": "medium",
   "categoryId": "8e1d3f7a-...",
@@ -84,14 +85,14 @@ Every question has the following shape:
 | `id`               | UUID       | No       | Unique identifier (UUIDv4)                                                  |
 | `title`            | string     | No       | The question text presented to the user                                     |
 | `correctAnswer`    | string     | No       | The single correct answer                                                   |
-| `incorrectAnswers` | string[]   | No       | Array with exactly 3 wrong answer options                                   |
+| `incorrectAnswers` | string[]   | No       | Array with exactly 4 wrong answer options                                   |
 | `difficulty`       | string     | No       | One of: `"easy"`, `"medium"`, `"hard"`                                      |
 | `categoryId`       | UUID       | No       | Foreign key referencing the category                                        |
 | `category`         | object     | No       | Embedded category object `{ id: UUID, name: string }`                      |
 | `createdAt`        | ISO 8601   | No       | Timestamp of when the question was inserted                                 |
 | `updatedAt`        | ISO 8601   | No       | Timestamp of the last update                                                |
 
-**Important:** `incorrectAnswers` always has exactly 3 items. Together with `correctAnswer`, a question always has exactly 4 answer options total.
+**Important:** `incorrectAnswers` always has exactly 4 items. Together with `correctAnswer`, a question always has exactly 5 answer options total.
 
 ### Category
 
@@ -179,7 +180,8 @@ GET /questions?category=CSS&difficulty=medium&limit=3&page=1&encode=base64
       "incorrectAnswers": [
         "Uma função sem parâmetros",
         "Um método para fechar conexões assíncronas",
-        "Uma função que não pode ser reatribuída"
+        "Uma função que não pode ser reatribuída",
+        "Uma variável de escopo global"
       ],
       "difficulty": "medium",
       "categoryId": "8e1d3f7a-4b2c-4f1e-9a3d-7c6b5a4e3f2d",
@@ -226,7 +228,8 @@ This applies recursively: values inside nested objects (like `category`) and ins
       "incorrectAnswers": [
         "VW1hIGZ1bsOnw6NvIHNlbSBwYXLDom1ldHJvcw==",
         "VW0gbcOpdG9kbyBwYXJhIGZlY2hhciBjb25leOVlcyBhc3PDrW5jcm9uYXM=",
-        "VW1hIGZ1bsOnw6NvIHF1ZSBuw6NvIHBvZGUgc2VyIHJlYXRyaWJ1w61kYQ=="
+        "VW1hIGZ1bsOnw6NvIHF1ZSBuw6NvIHBvZGUgc2VyIHJlYXRyaWJ1w61kYQ==",
+        "VW1hIHZhcmnDoXZlbCBkZSBlc2NvcG8gZ2xvYmFs"
       ],
       "difficulty": "bWVkaXVt",
       "categoryId": "OGUxZDNmN2EtNGIyYy00ZjFlLTlhM2QtN2M2YjVhNGUzZjJk",
@@ -762,7 +765,7 @@ When the user says...                         | You should...
 
 5. **With `encode=base64`, numbers become strings in the JSON.** `total: 44` becomes `total: "NDQ="`. Always decode before doing arithmetic.
 
-6. **`incorrectAnswers` always has exactly 3 items.** Together with `correctAnswer`, a question always has 4 options total.
+6. **`incorrectAnswers` always has exactly 4 items.** Together with `correctAnswer`, a question always has 5 options total.
 
 7. **`limit` and `pages` are omitted when `limit` is not set.** Don't assume they will always be present.
 
